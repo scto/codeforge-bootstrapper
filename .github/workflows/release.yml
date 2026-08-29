@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build placeholder bootstraps
+        run: |
+          mkdir -p dist
+          for arch in aarch64 arm i686 x86_64; do
+            echo "nya bootstrap for com.nyamux $arch" > dist/prefix-$arch.txt
+            zip -j dist/bootstrap-$arch.zip dist/prefix-$arch.txt
+          done
+          ls -lh dist/
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/bootstrap-*.zip
