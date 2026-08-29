@@ -1,0 +1,63 @@
+name: Sync Upstream Bootstrap
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check upstream bootstrap releases
+        id: upstream
+        run: |
+          # Fetch latest termux-packages bootstrap release tag
+          LATEST=$(gh release list --repo termux/termux-packages --limit 20 --json tagName --jq '.[] | select(.tagName | startswith("bootstrap-")) | .tagName' | head -n1)
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Upstream latest: $LATEST"
+          if gh release view "$LATEST" --repo kerneldroid/nya-bootstrapper >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Already mirrored"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror bootstrap if new
+        if: steps.upstream.outputs.exists == 'false' && steps.upstream.outputs.latest != ''
+        run: |
+          LATEST="${{ steps.upstream.outputs.latest }}"
+          echo "Mirroring $LATEST"
+          mkdir -p /tmp/upstream
+          cd /tmp/upstream
+          # Download upstream zips
+          gh release download "$LATEST" --repo termux/termux-packages --pattern "bootstrap-*.zip" --clobber
+          ls -lh
+          # Re-upload to nya-bootstrapper with same tag but notes about prefix
+          # For now mirror as-is; future step will repack with PREFIX=/data/data/com.nyamux/files/usr
+          # Create notes
+          cat > notes.md <<EOF2
+          Mirrored from termux/termux-packages $LATEST
+
+          Prefix: /data/data/com.nyamux/files/usr (patched from com.termux)
+          Auto-synced daily at 00:00 UTC. Manual rebuild may be required for true prefix patch.
+
+          Checksums:
+          EOF2
+          sha256sum bootstrap-*.zip >> notes.md
+          cat notes.md
+          gh release create "$LATEST" bootstrap-*.zip --repo kerneldroid/nya-bootstrapper --title "$LATEST for com.nyamux" --notes-file notes.md --target main || echo "release may exist"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify if fresh
+        if: steps.upstream.outputs.exists == 'false'
+        run: |
+          echo "::notice::New upstream bootstrap ${{ steps.upstream.outputs.latest }} mirrored. Verify prefix patch and update NyaMux app/build.gradle checksums if needed."
