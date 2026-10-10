@@ -41,9 +41,9 @@ jobs:
           path: termux-packages
           fetch-depth: 1
 
-      - name: Build bootstrap for com.nyamux
+      - name: Build bootstrap for com.codeforge.app
         env:
-          TERMUX_PREFIX: /data/data/com.nyamux/files/usr
+          TERMUX_PREFIX: /data/data/com.codeforge.app/files/usr
           TERMUX_PACKAGE_VARIANT: apt-android-7
         run: |
           cd termux-packages
