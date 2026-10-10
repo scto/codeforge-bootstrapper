@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p dist
           for arch in aarch64 arm i686 x86_64; do
-            echo "nya bootstrap for com.nyamux $arch" > dist/prefix-$arch.txt
+            echo "nya bootstrap for com.codeforge.app $arch" > dist/prefix-$arch.txt
             zip -j dist/bootstrap-$arch.zip dist/prefix-$arch.txt
           done
           ls -lh dist/
